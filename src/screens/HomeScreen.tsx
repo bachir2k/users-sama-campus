@@ -1,5 +1,7 @@
-import { Palette } from '../theme/palette'
-import { STUDENT, TXNS, CAT_COLOR } from '../data/mockData'
+import type { Palette } from '../theme/palette'
+import { CAT_COLOR, type Transaction } from '../data/mockData'
+import { useStudent } from '../context/StudentContext'
+import type { StudentProfile } from '../lib/db'
 import { Icon } from '../components/ui/Icon'
 import { Money } from '../components/ui/Money'
 
@@ -12,7 +14,7 @@ interface Props {
 
 const CARD_GRAD = 'radial-gradient(130% 130% at 12% 8%, #9a7850 0%, #7d5f3f 46%, #5f4730 100%)'
 
-function MiniCard({ p }: { p: Palette }) {
+function MiniCard({ p, student }: { p: Palette; student: StudentProfile }) {
   return (
     <div style={{
       position: 'relative', borderRadius: 22,
@@ -34,23 +36,23 @@ function MiniCard({ p }: { p: Palette }) {
       </div>
       <div style={{ marginTop: 16, width: 42, height: 32, borderRadius: 7, background: 'linear-gradient(135deg,#e6c98c,#c79a5d)', position: 'relative', zIndex: 1 }} />
       <div style={{ marginTop: 14, fontFamily: DISP, fontWeight: 600, letterSpacing: '.12em', fontSize: 14 }}>
-        {STUDENT.num}
+        {student.num}
       </div>
       <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
           <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', opacity: .65 }}>Titulaire</div>
-          <div style={{ fontFamily: DISP, fontWeight: 600, fontSize: 14 }}>{STUDENT.name}</div>
+          <div style={{ fontFamily: DISP, fontWeight: 600, fontSize: 14 }}>{student.name}</div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 9, letterSpacing: '.14em', textTransform: 'uppercase', opacity: .65 }}>Promo</div>
-          <div style={{ fontFamily: DISP, fontWeight: 600, fontSize: 14 }}>2026</div>
+          <div style={{ fontFamily: DISP, fontWeight: 600, fontSize: 14 }}>{student.promo.split('·').pop()?.trim() || student.promo}</div>
         </div>
       </div>
     </div>
   )
 }
 
-function TxnRow({ t, last, p }: { t: typeof TXNS[0]; last: boolean; p: Palette }) {
+function TxnRow({ t, last, p }: { t: Transaction; last: boolean; p: Palette }) {
   const pos = t.amount > 0
   const zero = t.amount === 0
   const bg = CAT_COLOR[t.cat] ?? p.brown
@@ -74,6 +76,7 @@ function TxnRow({ t, last, p }: { t: typeof TXNS[0]; last: boolean; p: Palette }
 }
 
 export function HomeScreen({ p, go }: Props) {
+  const { student, transactions } = useStudent()
   const quick = [
     { ic: 'plus',     label: 'Recharger', to: 'pay-recharge' },
     { ic: 'pay',      label: 'Payer',     to: 'pay-pay' },
@@ -87,7 +90,7 @@ export function HomeScreen({ p, go }: Props) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <div style={{ fontSize: 14, color: p.muted, fontWeight: 600 }}>Bonjour,</div>
-          <div style={{ fontFamily: DISP, fontWeight: 700, fontSize: 28, color: p.ink, letterSpacing: '-.01em' }}>{STUDENT.first} 👋</div>
+          <div style={{ fontFamily: DISP, fontWeight: 700, fontSize: 28, color: p.ink, letterSpacing: '-.01em' }}>{student.first} 👋</div>
         </div>
         <button style={{ position: 'relative', width: 46, height: 46, borderRadius: 14, border: `1px solid ${p.line}`, background: p.surface, display: 'grid', placeItems: 'center' }}>
           <Icon name="bell" size={21} color={p.ink} />
@@ -99,14 +102,14 @@ export function HomeScreen({ p, go }: Props) {
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 400px) 1fr', gap: 24, alignItems: 'start' }}>
         {/* left column */}
         <div>
-          <MiniCard p={p} />
+          <MiniCard p={p} student={student} />
 
           {/* balance */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: p.surface, border: `1px solid ${p.line}`, borderRadius: 16, padding: '16px 20px', marginTop: 16 }}>
             <div>
               <div style={{ fontSize: 12.5, color: p.muted, fontWeight: 600 }}>Solde disponible</div>
               <div style={{ fontFamily: DISP, fontWeight: 700, fontSize: 26, color: p.ink, letterSpacing: '-.01em' }}>
-                <Money value={STUDENT.balance} />
+                <Money value={student.balance} />
               </div>
             </div>
             <button
@@ -137,7 +140,11 @@ export function HomeScreen({ p, go }: Props) {
             <button onClick={() => go('history')} style={{ background: 'none', border: 'none', color: p.brown, fontFamily: DISP, fontWeight: 600, fontSize: 13.5 }}>Tout voir</button>
           </div>
           <div style={{ background: p.surface, border: `1px solid ${p.line}`, borderRadius: 18, padding: '4px 18px' }}>
-            {TXNS.slice(0, 6).map((t, i, a) => <TxnRow key={t.id} t={t} p={p} last={i === a.length - 1} />)}
+            {transactions.length === 0 ? (
+              <div style={{ padding: '24px 0', textAlign: 'center', color: p.muted, fontSize: 14 }}>Aucune activité récente</div>
+            ) : (
+              transactions.slice(0, 6).map((t, i, a) => <TxnRow key={t.id} t={t} p={p} last={i === a.length - 1} />)
+            )}
           </div>
         </div>
       </div>

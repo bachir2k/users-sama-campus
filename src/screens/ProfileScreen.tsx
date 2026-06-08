@@ -1,13 +1,15 @@
 import { useState } from 'react'
-import { Palette } from '../theme/palette'
-import { STUDENT } from '../data/mockData'
+import type { Palette } from '../theme/palette'
+import { useStudent } from '../context/StudentContext'
+import { studentInitials } from '../lib/db'
 import { Icon } from '../components/ui/Icon'
 import { Toggle } from '../components/ui/Toggle'
 
 const DISP = '"Quicksand", system-ui, sans-serif'
 const CARD_GRAD = 'radial-gradient(130% 130% at 12% 8%, #9a7850 0%, #7d5f3f 46%, #5f4730 100%)'
 
-export function ProfileScreen({ p }: { p: Palette }) {
+export function ProfileScreen({ p, onLogout }: { p: Palette; onLogout?: () => void }) {
+  const { student } = useStudent()
   const [bio, setBio] = useState(true)
   const [contactless, setContactless] = useState(true)
   const [locked, setLocked] = useState(false)
@@ -26,14 +28,14 @@ export function ProfileScreen({ p }: { p: Palette }) {
       {/* profile card */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: p.surface, border: `1px solid ${p.line}`, borderRadius: 18, padding: 16 }}>
         <div style={{ width: 58, height: 58, borderRadius: '50%', background: CARD_GRAD, color: p.cardInk, display: 'grid', placeItems: 'center', fontFamily: DISP, fontWeight: 700, fontSize: 22, flexShrink: 0 }}>
-          AN
+          {studentInitials(student)}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: DISP, fontWeight: 700, fontSize: 18, color: p.ink }}>{STUDENT.name}</div>
-          <div style={{ fontSize: 13, color: p.muted, marginTop: 2 }}>{STUDENT.promo}</div>
+          <div style={{ fontFamily: DISP, fontWeight: 700, fontSize: 18, color: p.ink }}>{student.name}</div>
+          <div style={{ fontSize: 13, color: p.muted, marginTop: 2 }}>{student.promo}</div>
         </div>
         <span style={{ fontFamily: DISP, fontWeight: 600, fontSize: 12, color: p.brown, background: p.surfaceAlt, padding: '6px 11px', borderRadius: 999 }}>
-          {STUDENT.id}
+          {student.id}
         </span>
       </div>
 
@@ -75,6 +77,20 @@ export function ProfileScreen({ p }: { p: Palette }) {
       <button style={{ width: '100%', marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, background: 'transparent', border: `1px solid ${p.dangerSoft}`, color: p.danger, borderRadius: 14, padding: '14px 0', fontFamily: DISP, fontWeight: 700, fontSize: 15 }}>
         <Icon name="alert" size={18} color={p.danger} /> Signaler une perte ou un vol
       </button>
+      {onLogout && (
+        <button
+          onClick={onLogout}
+          style={{
+            width: '100%', marginTop: 8,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+            background: 'transparent', border: `1px solid ${p.line}`,
+            color: p.muted, borderRadius: 14, padding: '14px 0',
+            fontFamily: DISP, fontWeight: 700, fontSize: 15, cursor: 'pointer',
+          }}
+        >
+          <Icon name="logout" size={18} color={p.muted} /> Se déconnecter
+        </button>
+      )}
       <div style={{ height: 8 }} />
     </div>
   )

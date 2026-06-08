@@ -35,6 +35,7 @@ const ICONS: Record<string, string> = {
   alert:       'M12 3l9 16H3zM12 10v4M12 17v.01',
   filter:      'M3 5h18l-7 8v6l-4-2v-4z',
   dots:        'M5 12h.01M12 12h.01M19 12h.01',
+  logout:      'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
 }
 
 interface IconProps {

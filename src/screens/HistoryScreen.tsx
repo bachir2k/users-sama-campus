@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Palette } from '../theme/palette'
-import { TXNS, CAT_COLOR, Transaction } from '../data/mockData'
+import type { Palette } from '../theme/palette'
+import { CAT_COLOR, type Transaction } from '../data/mockData'
+import { useStudent } from '../context/StudentContext'
 import { Icon } from '../components/ui/Icon'
 import { Money } from '../components/ui/Money'
 
@@ -28,10 +29,11 @@ function TxnRow({ t, last, p }: { t: Transaction; last: boolean; p: Palette }) {
 }
 
 export function HistoryScreen({ p }: { p: Palette }) {
+  const { transactions } = useStudent()
   const [filter, setFilter] = useState('Tout')
-  const list = TXNS.filter(t => filter === 'Tout' || t.cat === filter)
+  const list = transactions.filter(t => filter === 'Tout' || t.cat === filter)
   const days = [...new Set(list.map(t => t.day))]
-  const spentToday = TXNS.filter(t => t.day === "Aujourd'hui" && t.amount < 0).reduce((s, t) => s + t.amount, 0)
+  const spentToday = transactions.filter(t => t.day === "Aujourd'hui" && t.amount < 0).reduce((s, t) => s + t.amount, 0)
 
   return (
     <div>
@@ -59,16 +61,22 @@ export function HistoryScreen({ p }: { p: Palette }) {
         ))}
       </div>
 
-      {days.map(d => (
-        <div key={d}>
-          <h3 style={{ margin: '24px 0 12px', fontFamily: DISP, fontWeight: 700, fontSize: 18, color: p.ink }}>{d}</h3>
-          <div style={{ background: p.surface, border: `1px solid ${p.line}`, borderRadius: 18, padding: '4px 16px' }}>
-            {list.filter(t => t.day === d).map((t, i, a) => (
-              <TxnRow key={t.id} t={t} p={p} last={i === a.length - 1} />
-            ))}
-          </div>
+      {list.length === 0 ? (
+        <div style={{ marginTop: 24, padding: '40px 0', textAlign: 'center', color: p.muted, fontSize: 14, background: p.surface, border: `1px solid ${p.line}`, borderRadius: 18 }}>
+          Aucune transaction pour le moment
         </div>
-      ))}
+      ) : (
+        days.map(d => (
+          <div key={d}>
+            <h3 style={{ margin: '24px 0 12px', fontFamily: DISP, fontWeight: 700, fontSize: 18, color: p.ink }}>{d}</h3>
+            <div style={{ background: p.surface, border: `1px solid ${p.line}`, borderRadius: 18, padding: '4px 16px' }}>
+              {list.filter(t => t.day === d).map((t, i, a) => (
+                <TxnRow key={t.id} t={t} p={p} last={i === a.length - 1} />
+              ))}
+            </div>
+          </div>
+        ))
+      )}
       <div style={{ height: 8 }} />
     </div>
   )

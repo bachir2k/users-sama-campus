@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Palette } from '../theme/palette'
-import { STUDENT, ACCESS_LOG } from '../data/mockData'
+import type { Palette } from '../theme/palette'
+import { ACCESS_LOG } from '../data/mockData'
+import { useStudent } from '../context/StudentContext'
 import { Icon } from '../components/ui/Icon'
 import { QRCode } from '../components/ui/QRCode'
 import { Toggle } from '../components/ui/Toggle'
@@ -8,6 +9,7 @@ import { Toggle } from '../components/ui/Toggle'
 const DISP = '"Quicksand", system-ui, sans-serif'
 
 export function AccessScreen({ p }: { p: Palette }) {
+  const { student } = useStudent()
   const [nfc, setNfc] = useState(true)
 
   return (
@@ -22,7 +24,7 @@ export function AccessScreen({ p }: { p: Palette }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16 }}>
           <span style={{ width: 9, height: 9, borderRadius: 5, background: p.ok, display: 'block' }} />
-          <span style={{ fontFamily: DISP, fontWeight: 600, fontSize: 14, color: p.ink }}>Badge actif · {STUDENT.id}</span>
+          <span style={{ fontFamily: DISP, fontWeight: 600, fontSize: 14, color: p.ink }}>Badge actif · {student.id}</span>
         </div>
         <div style={{ color: p.muted, fontSize: 12.5, marginTop: 3 }}>Code régénéré toutes les 60 s</div>
       </div>
