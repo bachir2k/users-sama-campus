@@ -7,17 +7,19 @@ import { AccessScreen } from './screens/AccessScreen'
 import { PresencesScreen } from './screens/PresencesScreen'
 import { ProfileScreen } from './screens/ProfileScreen'
 import { Icon } from './components/ui/Icon'
+import { STUDENT } from './data/mockData'
 
 type Screen = 'home' | 'history' | 'pay' | 'pay-pay' | 'pay-recharge' | 'access' | 'presences' | 'profile'
 
 const VARIANT: Variant = 'light'
 
-const TABS = [
-  { key: 'home' as Screen,    ic: 'home',    label: 'Carte' },
-  { key: 'history' as Screen, ic: 'history', label: 'Activité' },
-  { key: 'pay' as Screen,     ic: 'pay',     label: 'Payer',   center: true },
-  { key: 'access' as Screen,  ic: 'qr',      label: 'Accès' },
-  { key: 'profile' as Screen, ic: 'user',    label: 'Profil' },
+const NAV = [
+  { key: 'home' as Screen,      ic: 'home',     label: 'Carte' },
+  { key: 'history' as Screen,   ic: 'history',  label: 'Activité' },
+  { key: 'pay' as Screen,       ic: 'pay',      label: 'Payer' },
+  { key: 'access' as Screen,    ic: 'qr',       label: 'Accès' },
+  { key: 'presences' as Screen, ic: 'calendar', label: 'Présences' },
+  { key: 'profile' as Screen,   ic: 'user',     label: 'Profil' },
 ]
 
 const DISP = '"Quicksand", system-ui, sans-serif'
@@ -28,13 +30,7 @@ export default function App() {
 
   const go = (s: string) => setScreen(s as Screen)
 
-  const baseTab: Screen | null = screen.startsWith('pay')
-    ? 'pay'
-    : screen === 'presences'
-    ? null
-    : screen as Screen
-
-  const showBack = screen === 'presences'
+  const baseTab: Screen = screen.startsWith('pay') ? 'pay' : (screen as Screen)
 
   let content: React.ReactNode
   switch (screen) {
@@ -49,86 +45,94 @@ export default function App() {
     default:             content = <HomeScreen p={p} go={go} />
   }
 
-  const shell: CSSProperties = {
-    width: '100%',
-    maxWidth: 430,
-    minHeight: '100dvh',
-    display: 'flex',
-    flexDirection: 'column',
-    background: p.appBg,
-    position: 'relative',
-    boxShadow: '0 0 60px rgba(0,0,0,0.12)',
-    fontFamily: '"Mulish", system-ui, sans-serif',
-    color: p.ink,
-  }
-
-  const tabBar: CSSProperties = {
+  const sidebar: CSSProperties = {
+    width: 264,
     flexShrink: 0,
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    padding: '8px 10px max(26px, env(safe-area-inset-bottom))',
-    background: p.tabBg,
-    backdropFilter: 'blur(16px)',
-    WebkitBackdropFilter: 'blur(16px)',
-    borderTop: `1px solid ${p.line}`,
+    flexDirection: 'column',
+    background: p.surface,
+    borderRight: `1px solid ${p.line}`,
+    padding: '28px 18px',
     position: 'sticky',
-    bottom: 0,
+    top: 0,
+    height: '100dvh',
+  }
+
+  const main: CSSProperties = {
+    flex: 1,
+    minWidth: 0,
+    minHeight: '100dvh',
+    background: p.appBg,
+    color: p.ink,
+    fontFamily: '"Mulish", system-ui, sans-serif',
   }
 
   return (
-    <div style={shell}>
-      {/* safe area top */}
-      <div style={{ height: 'max(20px, env(safe-area-inset-top))', flexShrink: 0, background: p.appBg }} />
-
-      {/* back button for sub-screens */}
-      {showBack && (
-        <div style={{ padding: '0 20px 6px', flexShrink: 0 }}>
-          <button
-            onClick={() => go('home')}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, color: p.brown, fontFamily: DISP, fontWeight: 600, fontSize: 14.5 }}
-          >
-            <Icon name="chevL" size={18} color={p.brown} /> Accueil
-          </button>
+    <div style={{ display: 'flex', width: '100%' }}>
+      {/* sidebar */}
+      <aside style={sidebar}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 10px 28px' }}>
+          <span style={{ width: 36, height: 36, borderRadius: 11, background: p.ink, display: 'grid', placeItems: 'center' }}>
+            <Icon name="card" size={18} color={p.surface} strokeWidth={2} />
+          </span>
+          <span style={{ fontFamily: DISP, fontWeight: 700, fontSize: 19, color: p.ink }}>
+            Sama<span style={{ color: p.brown }}>Campus</span>
+          </span>
         </div>
-      )}
 
-      {/* scrollable content */}
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '6px 20px 16px' }}>
-        {content}
-      </div>
-
-      {/* tab bar */}
-      <div style={tabBar}>
-        {TABS.map(t => {
-          const active = baseTab === t.key
-          if (t.center) {
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
+          {NAV.map(n => {
+            const active = baseTab === n.key
             return (
               <button
-                key={t.key}
-                onClick={() => go('pay')}
+                key={n.key}
+                onClick={() => go(n.key)}
                 style={{
-                  background: p.ink, border: 'none', width: 52, height: 52,
-                  borderRadius: 17, display: 'grid', placeItems: 'center',
-                  marginTop: -18, boxShadow: '0 8px 18px rgba(43,42,38,.28)', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', gap: 13,
+                  padding: '12px 14px', borderRadius: 13,
+                  background: active ? p.surfaceAlt : 'transparent',
+                  color: active ? p.brown : p.ink2,
+                  fontFamily: DISP, fontWeight: active ? 700 : 600, fontSize: 14.5,
+                  textAlign: 'left', width: '100%',
                 }}
               >
-                <Icon name="pay" size={24} color={p.surface} strokeWidth={2} />
+                <Icon name={n.ic} size={20} color={active ? p.brown : p.muted} strokeWidth={active ? 2.2 : 1.8} />
+                {n.label}
               </button>
             )
-          }
-          return (
-            <button
-              key={t.key}
-              onClick={() => go(t.key)}
-              style={{ background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '4px 8px', flex: 1 }}
-            >
-              <Icon name={t.ic} size={23} color={active ? p.brown : p.muted} strokeWidth={active ? 2.2 : 1.8} />
-              <span style={{ fontFamily: DISP, fontWeight: 600, fontSize: 10.5, color: active ? p.brown : p.muted }}>{t.label}</span>
-            </button>
-          )
-        })}
-      </div>
+          })}
+        </nav>
+
+        <button
+          onClick={() => go('profile')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            padding: 12, borderRadius: 14, marginTop: 12,
+            background: p.surfaceAlt, border: `1px solid ${p.line}`,
+            textAlign: 'left', width: '100%',
+          }}
+        >
+          <span style={{
+            width: 38, height: 38, borderRadius: '50%',
+            background: 'radial-gradient(130% 130% at 12% 8%, #9a7850 0%, #7d5f3f 46%, #5f4730 100%)',
+            color: p.cardInk, display: 'grid', placeItems: 'center',
+            fontFamily: DISP, fontWeight: 700, fontSize: 14, flexShrink: 0,
+          }}>
+            {STUDENT.first[0]}{STUDENT.name.split(' ')[1]?.[0] ?? ''}
+          </span>
+          <span style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: DISP, fontWeight: 700, fontSize: 14, color: p.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{STUDENT.name}</div>
+            <div style={{ fontSize: 12, color: p.muted }}>{STUDENT.id}</div>
+          </span>
+        </button>
+      </aside>
+
+      {/* main content */}
+      <main style={main}>
+        <div style={{ maxWidth: 1180, margin: '0 auto', padding: '36px 48px 64px' }}>
+          {content}
+        </div>
+      </main>
     </div>
   )
 }

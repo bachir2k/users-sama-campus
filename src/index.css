@@ -14,9 +14,6 @@ body {
 #root {
   min-height: 100dvh;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  background: #E0DCD4;
 }
 
 button {
