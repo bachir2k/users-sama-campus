@@ -77,6 +77,7 @@ function TxnRow({ t, last, p }: { t: Transaction; last: boolean; p: Palette }) {
 
 export function HomeScreen({ p, go }: Props) {
   const { student, transactions } = useStudent()
+  if (!student) return null
   const quick = [
     { ic: 'plus',     label: 'Recharger', to: 'pay-recharge' },
     { ic: 'pay',      label: 'Payer',     to: 'pay-pay' },

@@ -32,7 +32,7 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
 
       {/* tab switcher */}
       <div style={{ display: 'flex', background: p.surfaceAlt, borderRadius: 13, padding: 4, marginBottom: 20 }}>
-        {(['pay', 'Payer'], [['pay', 'Payer'], ['recharge', 'Recharger']] as ['pay' | 'recharge', string][]).map(([k, l]) => (
+        {([['pay', 'Payer'], ['recharge', 'Recharger']] as ['pay' | 'recharge', string][]).map(([k, l]) => (
           <button
             key={k}
             onClick={() => { setTab(k); setPaid(false) }}

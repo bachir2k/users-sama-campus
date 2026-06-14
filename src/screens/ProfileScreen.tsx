@@ -14,6 +14,8 @@ export function ProfileScreen({ p, onLogout }: { p: Palette; onLogout?: () => vo
   const [contactless, setContactless] = useState(true)
   const [locked, setLocked] = useState(false)
 
+  if (!student) return null
+
   const rows = [
     { ic: 'lock',        label: 'Code PIN',                    detail: '••••' },
     { ic: 'fingerprint', label: 'Déverrouillage biométrique',  toggle: [bio, setBio] as [boolean, (v: boolean) => void] },
