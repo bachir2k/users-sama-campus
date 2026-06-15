@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Palette } from '../theme/palette'
 import { Icon } from '../components/ui/Icon'
 import { Money } from '../components/ui/Money'
+import { supabase } from '../lib/supabase'
 
 const DISP = '"Quicksand", system-ui, sans-serif'
 
@@ -18,13 +19,44 @@ interface Props {
 }
 
 export function PayScreen({ p, mode = 'pay' }: Props) {
-  const [tab, setTab] = useState<'pay' | 'recharge'>(mode)
+  const [tab, setTab]       = useState<'pay' | 'recharge'>(mode)
   const [amount, setAmount] = useState(mode === 'recharge' ? 10000 : 0)
-  const [paid, setPaid] = useState(false)
+  const [paid, setPaid]     = useState(false)
   const [method, setMethod] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
+
+  // Détecter le retour depuis PayTech (?status=success ou ?status=cancel)
+  const urlStatus = new URLSearchParams(window.location.search).get('status')
+  useEffect(() => {
+    if (urlStatus === 'success') {
+      setTab('recharge')
+      setPaid(true)
+    }
+  }, [urlStatus])
 
   const methodColor = (key: typeof METHODS[0]['colorKey']) =>
     ({ brown: p.brown, blue: p.blue, olive: p.olive }[key])
+
+  async function handleRecharge() {
+    if (amount < 100) return
+    setLoading(true)
+    setErrorMsg('')
+    try {
+      const { data, error } = await supabase.functions.invoke('payment-init', {
+        body: { amount, type: 'recharge' },
+      })
+      if (error) throw new Error(error.message)
+      if (data?.redirectUrl) {
+        window.location.href = data.redirectUrl
+      } else {
+        throw new Error('URL de redirection manquante')
+      }
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Erreur lors du paiement')
+      setLoading(false)
+    }
+  }
 
   return (
     <div>
@@ -35,7 +67,7 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
         {([['pay', 'Payer'], ['recharge', 'Recharger']] as ['pay' | 'recharge', string][]).map(([k, l]) => (
           <button
             key={k}
-            onClick={() => { setTab(k); setPaid(false) }}
+            onClick={() => { setTab(k); setPaid(false); setErrorMsg('') }}
             style={{
               flex: 1, border: 'none', borderRadius: 10, padding: '10px 0',
               fontFamily: DISP, fontWeight: 600, fontSize: 14.5,
@@ -52,7 +84,6 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
 
       {tab === 'pay' ? (
         paid ? (
-          /* success state */
           <div style={{ textAlign: 'center', padding: '30px 0' }}>
             <div style={{ width: 92, height: 92, borderRadius: '50%', background: p.okSoft, display: 'grid', placeItems: 'center', margin: '0 auto' }}>
               <Icon name="check" size={48} color={p.ok} strokeWidth={2.6} />
@@ -67,7 +98,6 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
             </button>
           </div>
         ) : (
-          /* NFC tap prompt */
           <div style={{ textAlign: 'center' }}>
             <div style={{ position: 'relative', width: 180, height: 180, margin: '10px auto 0', display: 'grid', placeItems: 'center' }}>
               <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: `2px dashed ${p.line}` }} />
@@ -88,52 +118,95 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
         )
       ) : (
         /* recharge form */
-        <div>
-          <div style={{ textAlign: 'center', background: p.surface, border: `1px solid ${p.line}`, borderRadius: 18, padding: '22px 0' }}>
-            <div style={{ fontSize: 12.5, color: p.muted, fontWeight: 600, letterSpacing: '.04em' }}>MONTANT À RECHARGER</div>
-            <div style={{ fontFamily: DISP, fontWeight: 700, fontSize: 40, color: p.ink, marginTop: 4 }}><Money value={amount} /></div>
+        paid ? (
+          /* succès rechargement */
+          <div style={{ textAlign: 'center', padding: '30px 0' }}>
+            <div style={{ width: 92, height: 92, borderRadius: '50%', background: p.okSoft, display: 'grid', placeItems: 'center', margin: '0 auto' }}>
+              <Icon name="check" size={48} color={p.ok} strokeWidth={2.6} />
+            </div>
+            <div style={{ fontFamily: DISP, fontWeight: 700, fontSize: 21, color: p.ink, marginTop: 18 }}>Rechargement effectué</div>
+            <div style={{ color: p.muted, fontSize: 14.5, marginTop: 4 }}>
+              <Money value={amount} /> ajoutés à votre solde
+            </div>
+            <button
+              onClick={() => { setPaid(false); setAmount(10000) }}
+              style={{ marginTop: 24, background: p.surface, border: `1px solid ${p.line}`, borderRadius: 999, padding: '12px 22px', fontFamily: DISP, fontWeight: 600, fontSize: 14.5, color: p.ink }}
+            >
+              Nouveau rechargement
+            </button>
           </div>
+        ) : (
+          <div>
+            <div style={{ textAlign: 'center', background: p.surface, border: `1px solid ${p.line}`, borderRadius: 18, padding: '22px 0' }}>
+              <div style={{ fontSize: 12.5, color: p.muted, fontWeight: 600, letterSpacing: '.04em' }}>MONTANT À RECHARGER</div>
+              <div style={{ fontFamily: DISP, fontWeight: 700, fontSize: 40, color: p.ink, marginTop: 4 }}><Money value={amount} /></div>
+            </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
-            {PRESETS.map(v => (
-              <button
-                key={v}
-                onClick={() => setAmount(v)}
-                style={{
-                  border: `1px solid ${amount === v ? p.brown : p.line}`,
-                  background: amount === v ? p.surfaceAlt : p.surface,
-                  color: p.ink, borderRadius: 13, padding: '14px 0',
-                  fontFamily: DISP, fontWeight: 700, fontSize: 16,
-                }}
-              >
-                <Money value={v} />
-              </button>
-            ))}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
+              {PRESETS.map(v => (
+                <button
+                  key={v}
+                  onClick={() => setAmount(v)}
+                  style={{
+                    border: `1px solid ${amount === v ? p.brown : p.line}`,
+                    background: amount === v ? p.surfaceAlt : p.surface,
+                    color: p.ink, borderRadius: 13, padding: '14px 0',
+                    fontFamily: DISP, fontWeight: 700, fontSize: 16,
+                  }}
+                >
+                  <Money value={v} />
+                </button>
+              ))}
+            </div>
+
+            <h3 style={{ margin: '24px 0 12px', fontFamily: DISP, fontWeight: 700, fontSize: 18, color: p.ink }}>Moyen de paiement</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {METHODS.map((m, i) => (
+                <button
+                  key={m.n}
+                  onClick={() => setMethod(i)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, background: p.surface, border: `1px solid ${method === i ? p.brown : p.line}`, borderRadius: 14, padding: '13px 15px' }}
+                >
+                  <span style={{ width: 34, height: 34, borderRadius: 9, background: methodColor(m.colorKey), display: 'grid', placeItems: 'center', color: '#fff', fontFamily: DISP, fontWeight: 700, fontSize: 15 }}>
+                    {m.n[0]}
+                  </span>
+                  <span style={{ flex: 1, textAlign: 'left', fontFamily: DISP, fontWeight: 600, fontSize: 15, color: p.ink }}>{m.n}</span>
+                  <span style={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${method === i ? p.brown : p.line}`, display: 'grid', placeItems: 'center' }}>
+                    {method === i && <span style={{ width: 10, height: 10, borderRadius: '50%', background: p.brown, display: 'block' }} />}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {errorMsg && (
+              <div style={{ marginTop: 14, padding: '12px 16px', background: p.dangerSoft, borderRadius: 12, color: p.danger, fontFamily: DISP, fontWeight: 600, fontSize: 14 }}>
+                {errorMsg}
+              </div>
+            )}
+
+            <button
+              onClick={handleRecharge}
+              disabled={loading || amount < 100}
+              style={{
+                marginTop: 20, width: '100%', border: 'none', borderRadius: 14,
+                padding: '15px 0', fontFamily: DISP, fontWeight: 700, fontSize: 15.5,
+                background: loading || amount < 100 ? p.muted : p.ink,
+                color: p.surface, cursor: loading ? 'wait' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              }}
+            >
+              {loading ? (
+                <>
+                  <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${p.surface}`, borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+                  Redirection vers PayTech…
+                  <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+                </>
+              ) : (
+                <>Confirmer le rechargement · <Money value={amount} /></>
+              )}
+            </button>
           </div>
-
-          <h3 style={{ margin: '24px 0 12px', fontFamily: DISP, fontWeight: 700, fontSize: 18, color: p.ink }}>Moyen de paiement</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {METHODS.map((m, i) => (
-              <button
-                key={m.n}
-                onClick={() => setMethod(i)}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, background: p.surface, border: `1px solid ${method === i ? p.brown : p.line}`, borderRadius: 14, padding: '13px 15px' }}
-              >
-                <span style={{ width: 34, height: 34, borderRadius: 9, background: methodColor(m.colorKey), display: 'grid', placeItems: 'center', color: '#fff', fontFamily: DISP, fontWeight: 700, fontSize: 15 }}>
-                  {m.n[0]}
-                </span>
-                <span style={{ flex: 1, textAlign: 'left', fontFamily: DISP, fontWeight: 600, fontSize: 15, color: p.ink }}>{m.n}</span>
-                <span style={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${method === i ? p.brown : p.line}`, display: 'grid', placeItems: 'center' }}>
-                  {method === i && <span style={{ width: 10, height: 10, borderRadius: '50%', background: p.brown, display: 'block' }} />}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <button style={{ marginTop: 20, width: '100%', background: p.ink, color: p.surface, border: 'none', borderRadius: 14, padding: '15px 0', fontFamily: DISP, fontWeight: 700, fontSize: 15.5 }}>
-            Confirmer le rechargement
-          </button>
-        </div>
+        )
       )}
       <div style={{ height: 8 }} />
     </div>
