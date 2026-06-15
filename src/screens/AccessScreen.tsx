@@ -12,6 +12,8 @@ export function AccessScreen({ p }: { p: Palette }) {
   const { student } = useStudent()
   const [nfc, setNfc] = useState(true)
 
+  if (!student) return null
+
   return (
     <div>
       <h2 style={{ margin: '0 0 4px', fontFamily: DISP, fontWeight: 700, fontSize: 26, color: p.ink }}>Accès & badge</h2>
