@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Palette } from '../theme/palette'
+import type { Palette } from '../theme/palette'
 import { Icon } from '../components/ui/Icon'
 import { Money } from '../components/ui/Money'
 import { supabase } from '../lib/supabase'

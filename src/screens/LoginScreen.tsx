@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState, type FormEvent, type CSSProperties } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Palette } from '../theme/palette'
 
@@ -18,7 +18,7 @@ export function LoginScreen({ p, onLogin }: Props) {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault()
     setError('')
     setInfo('')
@@ -37,7 +37,7 @@ export function LoginScreen({ p, onLogin }: Props) {
     setLoading(false)
   }
 
-  const inputStyle: React.CSSProperties = {
+  const inputStyle: CSSProperties = {
     width: '100%',
     boxSizing: 'border-box',
     padding: '12px 14px',
