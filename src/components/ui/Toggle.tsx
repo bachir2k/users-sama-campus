@@ -1,4 +1,4 @@
-import { Palette } from '../../theme/palette'
+import type { Palette } from '../../theme/palette'
 
 interface ToggleProps {
   on: boolean
