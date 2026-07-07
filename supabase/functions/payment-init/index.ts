@@ -6,20 +6,20 @@ const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...CORS, 'Content-Type': 'application/json' },
+  })
+}
+
 serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: CORS })
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
   try {
-    // ── Auth: vérifier que l'utilisateur est connecté ──────
+    // ── 1. Auth ───────────────────────────────────────────────
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Non autorisé' }), {
-        status: 401, headers: { ...CORS, 'Content-Type': 'application/json' },
-      })
-    }
+    if (!authHeader) return json({ error: 'Non autorisé' }, 401)
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -29,73 +29,89 @@ serve(async (req) => {
 
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Non autorisé' }), {
-        status: 401, headers: { ...CORS, 'Content-Type': 'application/json' },
-      })
+      console.error('Auth error:', authError?.message)
+      return json({ error: 'Non autorisé' }, 401)
     }
 
-    // ── Lire le body ───────────────────────────────────────
-    const { amount, type } = await req.json()
+    // ── 2. Paramètres ─────────────────────────────────────────
+    const body = await req.json().catch(() => ({}))
+    const amount = Math.round(Number(body.amount ?? 0))
+    const type   = body.type ?? 'recharge'
 
     if (!amount || amount < 100) {
-      return new Response(JSON.stringify({ error: 'Montant invalide (min 100 F)' }), {
-        status: 400, headers: { ...CORS, 'Content-Type': 'application/json' },
-      })
+      return json({ error: `Montant invalide: ${amount} (min 100 F)` }, 400)
     }
 
-    // ── Clés PayTech ───────────────────────────────────────
-    const PAYTECH_API_KEY    = Deno.env.get('PAYTECH_API_KEY')
-    const PAYTECH_API_SECRET = Deno.env.get('PAYTECH_API_SECRET')
-    const APP_URL            = Deno.env.get('APP_URL') ?? 'https://sama-campus.vercel.app'
-    const SUPABASE_URL       = Deno.env.get('SUPABASE_URL')!
+    // ── 3. Secrets PayTech ────────────────────────────────────
+    const API_KEY    = Deno.env.get('PAYTECH_API_KEY')
+    const API_SECRET = Deno.env.get('PAYTECH_API_SECRET')
+    const APP_URL    = (Deno.env.get('APP_URL') ?? '').replace(/\/$/, '')
 
-    if (!PAYTECH_API_KEY || !PAYTECH_API_SECRET) {
-      console.error('PAYTECH_API_KEY ou PAYTECH_API_SECRET manquant')
-      return new Response(JSON.stringify({ error: 'Configuration paiement incomplète' }), {
-        status: 500, headers: { ...CORS, 'Content-Type': 'application/json' },
-      })
+    if (!API_KEY || !API_SECRET) {
+      console.error('Secrets manquants: PAYTECH_API_KEY ou PAYTECH_API_SECRET')
+      return json({ error: 'Configuration paiement incomplète' }, 500)
+    }
+    if (!APP_URL) {
+      console.error('Secret manquant: APP_URL')
+      return json({ error: 'Configuration APP_URL manquante' }, 500)
     }
 
-    // ── Appel API PayTech ──────────────────────────────────
-    const commandName = `SAMA-${type?.toUpperCase() ?? 'RECHARGE'}-${Date.now()}`
-    const params = new URLSearchParams({
-      item_name:    'Rechargement SamaCampus',
-      item_price:   String(amount),
-      command_name: commandName,
-      currency:     'xof',
-      notify_url:   `${SUPABASE_URL}/functions/v1/payment-webhook`,
-      success_url:  `${APP_URL}?status=success`,
-      cancel_url:   `${APP_URL}?status=cancel`,
-      custom_field: JSON.stringify({ user_id: user.id, amount, type }),
-    })
+    // ── 4. Appel PayTech ──────────────────────────────────────
+    const refCommand  = `SAMA-${type.toUpperCase()}-${Date.now()}`
+    const notifyUrl   = `${Deno.env.get('SUPABASE_URL')}/functions/v1/payment-webhook`
+    const customField = JSON.stringify({ user_id: user.id, amount, type })
+
+    const params = new URLSearchParams()
+    params.set('item_name',   'Rechargement SamaCampus')
+    params.set('item_price',  String(amount))
+    params.set('ref_command', refCommand)
+    params.set('currency',    'xof')
+    params.set('notify_url',  notifyUrl)
+    params.set('success_url', `${APP_URL}?status=success`)
+    params.set('cancel_url',  `${APP_URL}?status=cancel`)
+    params.set('custom_field', customField)
+
+    console.log('Calling PayTech:', { amount, refCommand, notifyUrl, success_url: `${APP_URL}?status=success` })
 
     const ptRes = await fetch('https://paytech.sn/api/payment/request-payment', {
-      method:  'POST',
+      method: 'POST',
       headers: {
-        'API_KEY':      PAYTECH_API_KEY,
-        'API_SECRET':   PAYTECH_API_SECRET,
+        'API_KEY':      API_KEY,
+        'API_SECRET':   API_SECRET,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params.toString(),
     })
 
-    const ptData = await ptRes.json()
+    const rawText = await ptRes.text()
+    console.log('PayTech HTTP status:', ptRes.status)
+    console.log('PayTech response:', rawText)
 
-    if (!ptRes.ok || ptData.success !== 1) {
-      console.error('PayTech error:', ptData)
-      return new Response(JSON.stringify({ error: ptData?.errors?.[0] ?? 'Erreur PayTech' }), {
-        status: 502, headers: { ...CORS, 'Content-Type': 'application/json' },
-      })
+    let ptData: Record<string, unknown> = {}
+    try { ptData = JSON.parse(rawText) } catch {
+      return json({ error: `Réponse PayTech invalide: ${rawText.slice(0, 200)}` }, 502)
     }
 
-    return new Response(JSON.stringify({ redirectUrl: ptData.redirectUrl }), {
-      status: 200, headers: { ...CORS, 'Content-Type': 'application/json' },
-    })
+    // PayTech retourne success:1 (int) ou success:"1" (string) selon la version
+    const isSuccess = ptData.success === 1 || ptData.success === '1'
+    if (!isSuccess) {
+      const errMsg = Array.isArray(ptData.errors)
+        ? (ptData.errors as string[]).join(', ')
+        : String(ptData.errors ?? ptData.error ?? 'Erreur inconnue PayTech')
+      console.error('PayTech refused:', errMsg)
+      return json({ error: `PayTech: ${errMsg}` }, 502)
+    }
+
+    const redirectUrl = ptData.redirectUrl ?? ptData.redirect_url
+    if (!redirectUrl) {
+      console.error('PayTech success but no redirectUrl:', ptData)
+      return json({ error: 'URL de redirection manquante dans la réponse PayTech' }, 502)
+    }
+
+    return json({ redirectUrl, token: ptData.token })
 
   } catch (err) {
-    console.error('payment-init error:', err)
-    return new Response(JSON.stringify({ error: 'Erreur serveur inattendue' }), {
-      status: 500, headers: { ...CORS, 'Content-Type': 'application/json' },
-    })
+    console.error('Unhandled error in payment-init:', err)
+    return json({ error: `Erreur serveur: ${(err as Error).message}` }, 500)
   }
 })
