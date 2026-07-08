@@ -21,6 +21,7 @@ interface Props {
 export function PayScreen({ p, mode = 'pay' }: Props) {
   const [tab, setTab]       = useState<'pay' | 'recharge'>(mode)
   const [amount, setAmount] = useState(mode === 'recharge' ? 10000 : 0)
+  const [customMode, setCustomMode] = useState(false)
   const [paid, setPaid]     = useState(false)
   const [method, setMethod] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -142,7 +143,7 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
               <Money value={amount} /> ajoutés à votre solde
             </div>
             <button
-              onClick={() => { setPaid(false); setAmount(10000) }}
+              onClick={() => { setPaid(false); setAmount(10000); setCustomMode(false) }}
               style={{ marginTop: 24, background: p.surface, border: `1px solid ${p.line}`, borderRadius: 999, padding: '12px 22px', fontFamily: DISP, fontWeight: 600, fontSize: 14.5, color: p.ink }}
             >
               Nouveau rechargement
@@ -159,10 +160,10 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
               {PRESETS.map(v => (
                 <button
                   key={v}
-                  onClick={() => setAmount(v)}
+                  onClick={() => { setAmount(v); setCustomMode(false) }}
                   style={{
-                    border: `1px solid ${amount === v ? p.brown : p.line}`,
-                    background: amount === v ? p.surfaceAlt : p.surface,
+                    border: `1px solid ${!customMode && amount === v ? p.brown : p.line}`,
+                    background: !customMode && amount === v ? p.surfaceAlt : p.surface,
                     color: p.ink, borderRadius: 13, padding: '14px 0',
                     fontFamily: DISP, fontWeight: 700, fontSize: 16,
                   }}
@@ -170,6 +171,38 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
                   <Money value={v} />
                 </button>
               ))}
+
+              {customMode ? (
+                <input
+                  type="number"
+                  autoFocus
+                  min={100}
+                  placeholder="Autre montant (F)"
+                  value={amount || ''}
+                  onChange={e => setAmount(Math.max(0, Math.round(Number(e.target.value))))}
+                  style={{
+                    gridColumn: '1 / -1',
+                    border: `1px solid ${p.brown}`,
+                    background: p.surface,
+                    color: p.ink, borderRadius: 13, padding: '13px 16px',
+                    fontFamily: DISP, fontWeight: 700, fontSize: 16,
+                    textAlign: 'center', width: '100%', boxSizing: 'border-box', outline: 'none',
+                  }}
+                />
+              ) : (
+                <button
+                  onClick={() => { setCustomMode(true); setAmount(0) }}
+                  style={{
+                    gridColumn: '1 / -1',
+                    border: `1px dashed ${p.line}`,
+                    background: p.surface,
+                    color: p.muted, borderRadius: 13, padding: '13px 0',
+                    fontFamily: DISP, fontWeight: 600, fontSize: 14.5,
+                  }}
+                >
+                  Autre montant…
+                </button>
+              )}
             </div>
 
             <h3 style={{ margin: '24px 0 12px', fontFamily: DISP, fontWeight: 700, fontSize: 18, color: p.ink }}>Moyen de paiement</h3>

@@ -13,6 +13,7 @@ export interface StudentProfile {
   first: string
   id: string
   promo: string
+  class?: string
   balance: number
   num: string
   email?: string
@@ -29,6 +30,7 @@ function mapStudent(row: Record<string, unknown>): StudentProfile {
     first: (row.first_name as string) || fullName.split(' ')[0] || '',
     id: (row.student_number as string) || '—',
     promo: (row.promo as string) || (row.class as string) || '—',
+    class: (row.class as string) || undefined,
     balance: (card?.balance as number) ?? 0,
     num: (card?.card_number as string) || '—',
     email: (row.email as string) || undefined,
