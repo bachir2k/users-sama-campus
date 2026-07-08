@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react'
+import { createContext, useContext, type ReactNode } from 'react'
 import { useStudentSession, type StudentProfile } from '../lib/db'
 import type { Transaction } from '../data/mockData'
 
@@ -12,7 +12,7 @@ interface StudentContextValue {
 
 const StudentContext = createContext<StudentContextValue | null>(null)
 
-export function StudentProvider({ children }: { children: React.ReactNode }) {
+export function StudentProvider({ children }: { children: ReactNode }) {
   const value = useStudentSession()
   return <StudentContext.Provider value={value}>{children}</StudentContext.Provider>
 }

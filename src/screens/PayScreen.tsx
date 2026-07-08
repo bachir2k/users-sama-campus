@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Palette } from '../theme/palette'
+import type { Palette } from '../theme/palette'
 import { Icon } from '../components/ui/Icon'
 import { Money } from '../components/ui/Money'
 import { supabase } from '../lib/supabase'
@@ -46,10 +46,23 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
       const { data, error } = await supabase.functions.invoke('payment-init', {
         body: { amount, type: 'recharge' },
       })
-      if (error) throw new Error(error.message)
+
+      if (error) {
+        // Extraire le vrai message retourné par l'edge function
+        let detail = error.message
+        try {
+          const body = await (error as any).context?.json?.()
+          if (body?.error) detail = body.error
+          else if (body?.message) detail = body.message
+        } catch { /* ignore */ }
+        console.error('[payment-init] error:', detail)
+        throw new Error(detail)
+      }
+
       if (data?.redirectUrl) {
         window.location.href = data.redirectUrl
       } else {
+        console.error('[payment-init] no redirectUrl in response:', data)
         throw new Error('URL de redirection manquante')
       }
     } catch (e) {

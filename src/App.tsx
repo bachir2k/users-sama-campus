@@ -1,5 +1,5 @@
-import React, { useState, useEffect, CSSProperties } from 'react'
-import { scPalette, Variant } from './theme/palette'
+import { useState, useEffect, type CSSProperties, type ReactNode } from 'react'
+import { scPalette, type Variant } from './theme/palette'
 import { HomeScreen } from './screens/HomeScreen'
 import { HistoryScreen } from './screens/HistoryScreen'
 import { PayScreen } from './screens/PayScreen'
@@ -103,7 +103,7 @@ function AuthenticatedApp({ p, screen, setScreen }: {
 
   const baseTab: Screen = screen.startsWith('pay') ? 'pay' : screen
 
-  let content: React.ReactNode
+  let content: ReactNode
   switch (screen) {
     case 'home':         content = <HomeScreen p={p} go={go} />; break
     case 'history':      content = <HistoryScreen p={p} />; break
