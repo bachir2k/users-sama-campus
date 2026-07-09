@@ -33,6 +33,19 @@ serve(async (req) => {
       return json({ error: 'Non autorisé' }, 401)
     }
 
+    // Le solde/les transactions sont rattachés à students.id, pas à l'id auth —
+    // on résout donc le profil étudiant comme le fait fetchStudentRow (src/lib/db.ts).
+    const { data: studentRow } = await supabase
+      .from('students')
+      .select('id')
+      .eq('email', user.email)
+      .maybeSingle()
+
+    if (!studentRow) {
+      return json({ error: 'Profil étudiant introuvable' }, 404)
+    }
+    const studentId = studentRow.id as string
+
     // ── 2. Paramètres ─────────────────────────────────────────
     const body = await req.json().catch(() => ({}))
     const amount = Math.round(Number(body.amount ?? 0))
@@ -79,11 +92,13 @@ serve(async (req) => {
       },
       actions: {
         cancel_url:   `${APP_URL}?status=cancel`,
-        return_url:   `${APP_URL}?status=success`,
+        // PayDunya ajoute lui-même "?token=..." au retour — pas de query string ici
+        // pour éviter un "?...?token=..." malformé.
+        return_url:   APP_URL,
         callback_url: notifyUrl,
       },
       custom_data: {
-        user_id: user.id,
+        user_id: studentId,
         amount,
         type,
         ref_command: refCommand,

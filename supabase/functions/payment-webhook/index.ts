@@ -59,25 +59,37 @@ serve(async (req) => {
     )
 
     if (confirmData.response_code === '00' && status === 'completed' && customData.user_id && customData.amount) {
-      // ── Créditer le solde de la carte via la fonction SQL ──
-      const { error: rpcErr } = await supabase.rpc('increment_card_balance', {
-        p_user_id: customData.user_id,
-        p_amount:  Math.round(customData.amount),
-      })
-      if (rpcErr) console.error('increment_card_balance error:', rpcErr)
+      // ── Anti-double-crédit : payment-confirm a peut-être déjà traité ce token ──
+      const { data: existing } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('student_id', customData.user_id)
+        .ilike('description', `%${token}%`)
+        .maybeSingle()
 
-      // ── Enregistrer la transaction de rechargement ──────────
-      await supabase.from('transactions').insert({
-        student_id:  customData.user_id, // sera résolu via RLS ou trigger si besoin
-        service:     'Rechargement',
-        description: `Rechargement PayDunya — ${token}`,
-        amount:      Math.round(customData.amount),
-        status:      'completed',
-      }).then(({ error }) => {
-        if (error) console.warn('transaction insert skipped:', error.message)
-      })
+      if (existing) {
+        console.log('Payment already credited, skipping:', token)
+      } else {
+        // ── Créditer le solde de la carte via la fonction SQL ──
+        const { error: rpcErr } = await supabase.rpc('increment_card_balance', {
+          p_user_id: customData.user_id,
+          p_amount:  Math.round(customData.amount),
+        })
+        if (rpcErr) console.error('increment_card_balance error:', rpcErr)
 
-      console.log('Payment completed:', token, 'amount:', customData.amount)
+        // ── Enregistrer la transaction de rechargement ──────────
+        await supabase.from('transactions').insert({
+          student_id:  customData.user_id,
+          service:     'Rechargement',
+          description: `Rechargement PayDunya — ${token}`,
+          amount:      Math.round(customData.amount),
+          status:      'completed',
+        }).then(({ error }) => {
+          if (error) console.warn('transaction insert skipped:', error.message)
+        })
+
+        console.log('Payment completed:', token, 'amount:', customData.amount)
+      }
 
     } else {
       console.log('Payment not completed, status:', status)

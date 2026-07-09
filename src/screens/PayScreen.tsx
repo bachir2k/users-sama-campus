@@ -13,6 +13,16 @@ const METHODS = [
   { n: 'Free Money',   colorKey: 'olive' as const },
 ]
 
+async function extractErrorMessage(error: unknown): Promise<string> {
+  let detail = error instanceof Error ? error.message : 'Erreur inconnue'
+  try {
+    const body = await (error as any)?.context?.json?.()
+    if (body?.error) detail = body.error
+    else if (body?.message) detail = body.message
+  } catch { /* ignore */ }
+  return detail
+}
+
 interface Props {
   p: Palette
   mode?: 'pay' | 'recharge'
@@ -27,14 +37,28 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
-  // Détecter le retour depuis PayDunya (?status=success ou ?status=cancel)
-  const urlStatus = new URLSearchParams(window.location.search).get('status')
+  // Détecter le retour depuis PayDunya : soit ?status=cancel, soit ?token=... (succès,
+  // PayDunya ajoute ce paramètre lui-même) qu'on confirme activement plutôt que
+  // d'attendre le webhook (pas fiable en sandbox).
+  const returnParams = new URLSearchParams(window.location.search)
+  const urlStatus = returnParams.get('status')
+  const urlToken  = returnParams.get('token')
+
   useEffect(() => {
-    if (urlStatus === 'success') {
-      setTab('recharge')
-      setPaid(true)
-    }
-  }, [urlStatus])
+    if (!urlToken) return
+    setTab('recharge')
+    setLoading(true)
+    setErrorMsg('')
+    supabase.functions.invoke('payment-confirm', { body: { token: urlToken } })
+      .then(async ({ data, error }) => {
+        if (error) throw new Error(await extractErrorMessage(error))
+        if (!data?.credited) throw new Error(data?.error || 'Paiement non confirmé')
+        setAmount(data.amount)
+        setPaid(true)
+      })
+      .catch((e: Error) => setErrorMsg(e.message))
+      .finally(() => setLoading(false))
+  }, [urlToken])
 
   const methodColor = (key: typeof METHODS[0]['colorKey']) =>
     ({ brown: p.brown, blue: p.blue, olive: p.olive }[key])
@@ -49,13 +73,7 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
       })
 
       if (error) {
-        // Extraire le vrai message retourné par l'edge function
-        let detail = error.message
-        try {
-          const body = await (error as any).context?.json?.()
-          if (body?.error) detail = body.error
-          else if (body?.message) detail = body.message
-        } catch { /* ignore */ }
+        const detail = await extractErrorMessage(error)
         console.error('[payment-init] error:', detail)
         throw new Error(detail)
       }
