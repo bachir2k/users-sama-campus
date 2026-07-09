@@ -79,8 +79,7 @@ export function HomeScreen({ p, go }: Props) {
   const { student, transactions } = useStudent()
   if (!student) return null
   const quick = [
-    { ic: 'plus',     label: 'Recharger', to: 'pay-recharge' },
-    { ic: 'pay',      label: 'Payer',     to: 'pay-pay' },
+    { ic: 'plus',     label: 'Recharger', to: 'pay' },
     { ic: 'calendar', label: 'Présences', to: 'presences' },
     { ic: 'book',     label: 'Emprunts',  to: 'loans' },
   ]
@@ -114,7 +113,7 @@ export function HomeScreen({ p, go }: Props) {
               </div>
             </div>
             <button
-              onClick={() => go('pay-recharge')}
+              onClick={() => go('pay')}
               style={{ display: 'flex', alignItems: 'center', gap: 7, background: p.ink, color: p.surface, border: 'none', borderRadius: 999, padding: '11px 16px', fontFamily: DISP, fontWeight: 600, fontSize: 14 }}
             >
               <Icon name="plus" size={17} color={p.surface} strokeWidth={2.4} /> Recharger

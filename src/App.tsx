@@ -12,14 +12,14 @@ import { StudentProvider, useStudent } from './context/StudentContext'
 import { studentInitials } from './lib/db'
 import { supabase } from './lib/supabase'
 
-type Screen = 'home' | 'history' | 'pay' | 'pay-pay' | 'pay-recharge' | 'presences' | 'loans' | 'profile'
+type Screen = 'home' | 'history' | 'pay' | 'presences' | 'loans' | 'profile'
 
 const VARIANT: Variant = 'light'
 
 const NAV = [
   { key: 'home' as Screen,      ic: 'home',     label: 'Carte' },
   { key: 'history' as Screen,   ic: 'history',  label: 'Activité' },
-  { key: 'pay' as Screen,       ic: 'pay',      label: 'Payer' },
+  { key: 'pay' as Screen,       ic: 'pay',      label: 'Recharger' },
   { key: 'presences' as Screen, ic: 'calendar', label: 'Présences' },
   { key: 'loans' as Screen,     ic: 'book',     label: 'Emprunts' },
   { key: 'profile' as Screen,   ic: 'user',     label: 'Profil' },
@@ -33,7 +33,7 @@ export default function App() {
   // (ex: "?status=success/&token=..."), d'où le nettoyage.
   const urlStatus = new URLSearchParams(window.location.search).get('status')?.replace(/\/$/, '')
   const [screen, setScreen] = useState<Screen>(
-    urlStatus === 'success' || urlStatus === 'cancel' ? 'pay-recharge' : 'home'
+    urlStatus === 'success' || urlStatus === 'cancel' ? 'pay' : 'home'
   )
   const [authed, setAuthed] = useState<boolean | null>(null)
 
@@ -109,15 +109,13 @@ function AuthenticatedApp({ p, screen, setScreen }: {
     )
   }
 
-  const baseTab: Screen = screen.startsWith('pay') ? 'pay' : screen
+  const baseTab: Screen = screen
 
   let content: ReactNode
   switch (screen) {
     case 'home':         content = <HomeScreen p={p} go={go} />; break
     case 'history':      content = <HistoryScreen p={p} />; break
-    case 'pay':
-    case 'pay-pay':      content = <PayScreen p={p} mode="pay" />; break
-    case 'pay-recharge': content = <PayScreen p={p} mode="recharge" />; break
+    case 'pay':           content = <PayScreen p={p} />; break
     case 'presences':    content = <PresencesScreen p={p} />; break
     case 'loans':        content = <BookLoansScreen p={p} />; break
     case 'profile':      content = <ProfileScreen p={p} onLogout={logout} />; break
