@@ -41,8 +41,7 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
   // PayDunya ajoute ce paramètre lui-même) qu'on confirme activement plutôt que
   // d'attendre le webhook (pas fiable en sandbox).
   const returnParams = new URLSearchParams(window.location.search)
-  const urlStatus = returnParams.get('status')
-  const urlToken  = returnParams.get('token')
+  const urlToken = returnParams.get('token')
 
   useEffect(() => {
     if (!urlToken) return
