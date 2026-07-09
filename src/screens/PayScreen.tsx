@@ -27,7 +27,7 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
-  // Détecter le retour depuis PayTech (?status=success ou ?status=cancel)
+  // Détecter le retour depuis PayDunya (?status=success ou ?status=cancel)
   const urlStatus = new URLSearchParams(window.location.search).get('status')
   useEffect(() => {
     if (urlStatus === 'success') {
@@ -244,7 +244,7 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
               {loading ? (
                 <>
                   <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${p.surface}`, borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
-                  Redirection vers PayTech…
+                  Redirection vers PayDunya…
                   <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
                 </>
               ) : (

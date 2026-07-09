@@ -5,6 +5,7 @@ import { HistoryScreen } from './screens/HistoryScreen'
 import { PayScreen } from './screens/PayScreen'
 import { AccessScreen } from './screens/AccessScreen'
 import { PresencesScreen } from './screens/PresencesScreen'
+import { BookLoansScreen } from './screens/BookLoansScreen'
 import { ProfileScreen } from './screens/ProfileScreen'
 import { LoginScreen } from './screens/LoginScreen'
 import { Icon } from './components/ui/Icon'
@@ -12,7 +13,7 @@ import { StudentProvider, useStudent } from './context/StudentContext'
 import { studentInitials } from './lib/db'
 import { supabase } from './lib/supabase'
 
-type Screen = 'home' | 'history' | 'pay' | 'pay-pay' | 'pay-recharge' | 'access' | 'presences' | 'profile'
+type Screen = 'home' | 'history' | 'pay' | 'pay-pay' | 'pay-recharge' | 'access' | 'presences' | 'loans' | 'profile'
 
 const VARIANT: Variant = 'light'
 
@@ -22,6 +23,7 @@ const NAV = [
   { key: 'pay' as Screen,       ic: 'pay',      label: 'Payer' },
   { key: 'access' as Screen,    ic: 'qr',       label: 'Accès' },
   { key: 'presences' as Screen, ic: 'calendar', label: 'Présences' },
+  { key: 'loans' as Screen,     ic: 'book',     label: 'Emprunts' },
   { key: 'profile' as Screen,   ic: 'user',     label: 'Profil' },
 ]
 
@@ -112,6 +114,7 @@ function AuthenticatedApp({ p, screen, setScreen }: {
     case 'pay-recharge': content = <PayScreen p={p} mode="recharge" />; break
     case 'access':       content = <AccessScreen p={p} />; break
     case 'presences':    content = <PresencesScreen p={p} />; break
+    case 'loans':        content = <BookLoansScreen p={p} />; break
     case 'profile':      content = <ProfileScreen p={p} onLogout={logout} />; break
     default:             content = <HomeScreen p={p} go={go} />
   }

@@ -12,27 +12,53 @@ serve(async (req) => {
   }
 
   try {
-    // PayTech envoie un POST avec le token et le statut
+    // PayDunya envoie un POST form-urlencoded avec un champ "data" (JSON)
     const body = await req.text()
     const params = new URLSearchParams(body)
+    const rawData = params.get('data')
+    if (!rawData) return new Response('Bad Request', { status: 400 })
 
-    const token       = params.get('token')
-    const typeEvent   = params.get('type_event')   // 'sale_complete' | 'sale_canceled'
-    const customField = params.get('custom_field')
+    let ipn: Record<string, unknown> = {}
+    try { ipn = JSON.parse(rawData) } catch { return new Response('Bad Request', { status: 400 }) }
 
-    if (!token || !typeEvent) {
-      return new Response('Bad Request', { status: 400 })
-    }
+    const invoice = ipn.invoice as Record<string, unknown> | undefined
+    const token = (invoice?.token ?? ipn.token) as string | undefined
+    if (!token) return new Response('Bad Request', { status: 400 })
 
-    let customData: { user_id?: string; amount?: number; type?: string } = {}
-    try { customData = JSON.parse(customField ?? '{}') } catch { /* ignore */ }
+    // ── Re-vérification côté serveur via l'API Confirm PayDunya ──
+    // On ne fait jamais confiance au seul payload de l'IPN : on rappelle
+    // PayDunya avec le token reçu pour confirmer le statut réel du paiement.
+    const MASTER_KEY  = Deno.env.get('PAYDUNYA_MASTER_KEY')!
+    const PRIVATE_KEY = Deno.env.get('PAYDUNYA_PRIVATE_KEY')!
+    const TOKEN_KEY   = Deno.env.get('PAYDUNYA_TOKEN')!
+    const MODE        = (Deno.env.get('PAYDUNYA_MODE') ?? 'test').toLowerCase()
+    const API_BASE    = MODE === 'live'
+      ? 'https://app.paydunya.com/api/v1'
+      : 'https://app.paydunya.com/sandbox-api/v1'
+
+    const confirmRes = await fetch(`${API_BASE}/checkout-invoice/confirm/${token}`, {
+      headers: {
+        'Content-Type':         'application/json',
+        'PAYDUNYA-MASTER-KEY':  MASTER_KEY,
+        'PAYDUNYA-PRIVATE-KEY': PRIVATE_KEY,
+        'PAYDUNYA-TOKEN':       TOKEN_KEY,
+      },
+    })
+    const confirmData = await confirmRes.json().catch(() => ({} as Record<string, unknown>))
+
+    const status = (confirmData.status
+      ?? (confirmData.invoice as Record<string, unknown> | undefined)?.status) as string | undefined
+    const customData = (confirmData.custom_data ?? ipn.custom_data ?? {}) as
+      { user_id?: string; amount?: number; type?: string }
+
+    console.log('PayDunya confirm:', { token, status, response_code: confirmData.response_code })
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
-    if (typeEvent === 'sale_complete' && customData.user_id && customData.amount) {
+    if (confirmData.response_code === '00' && status === 'completed' && customData.user_id && customData.amount) {
       // ── Créditer le solde de la carte via la fonction SQL ──
       const { error: rpcErr } = await supabase.rpc('increment_card_balance', {
         p_user_id: customData.user_id,
@@ -44,7 +70,7 @@ serve(async (req) => {
       await supabase.from('transactions').insert({
         student_id:  customData.user_id, // sera résolu via RLS ou trigger si besoin
         service:     'Rechargement',
-        description: `Rechargement PayTech — ${token}`,
+        description: `Rechargement PayDunya — ${token}`,
         amount:      Math.round(customData.amount),
         status:      'completed',
       }).then(({ error }) => {
@@ -53,8 +79,8 @@ serve(async (req) => {
 
       console.log('Payment completed:', token, 'amount:', customData.amount)
 
-    } else if (typeEvent === 'sale_canceled') {
-      console.log('Payment cancelled:', token)
+    } else {
+      console.log('Payment not completed, status:', status)
     }
 
     return new Response('200', { status: 200 })

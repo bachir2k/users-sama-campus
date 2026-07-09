@@ -42,13 +42,15 @@ serve(async (req) => {
       return json({ error: `Montant invalide: ${amount} (min 100 F)` }, 400)
     }
 
-    // ── 3. Secrets PayTech ────────────────────────────────────
-    const API_KEY    = Deno.env.get('PAYTECH_API_KEY')
-    const API_SECRET = Deno.env.get('PAYTECH_API_SECRET')
-    const APP_URL    = (Deno.env.get('APP_URL') ?? '').replace(/\/$/, '')
+    // ── 3. Secrets PayDunya ─────────────────────────────────────
+    const MASTER_KEY  = Deno.env.get('PAYDUNYA_MASTER_KEY')
+    const PRIVATE_KEY = Deno.env.get('PAYDUNYA_PRIVATE_KEY')
+    const TOKEN_KEY   = Deno.env.get('PAYDUNYA_TOKEN')
+    const APP_URL     = (Deno.env.get('APP_URL') ?? '').replace(/\/$/, '')
+    const MODE        = (Deno.env.get('PAYDUNYA_MODE') ?? 'test').toLowerCase()
 
-    if (!API_KEY || !API_SECRET) {
-      console.error('Secrets manquants: PAYTECH_API_KEY ou PAYTECH_API_SECRET')
+    if (!MASTER_KEY || !PRIVATE_KEY || !TOKEN_KEY) {
+      console.error('Secrets manquants: PAYDUNYA_MASTER_KEY, PAYDUNYA_PRIVATE_KEY ou PAYDUNYA_TOKEN')
       return json({ error: 'Configuration paiement incomplète' }, 500)
     }
     if (!APP_URL) {
@@ -56,59 +58,77 @@ serve(async (req) => {
       return json({ error: 'Configuration APP_URL manquante' }, 500)
     }
 
-    // ── 4. Appel PayTech ──────────────────────────────────────
-    const refCommand  = `SAMA-${type.toUpperCase()}-${Date.now()}`
-    const notifyUrl   = `${Deno.env.get('SUPABASE_URL')}/functions/v1/payment-webhook`
-    const customField = JSON.stringify({ user_id: user.id, amount, type })
+    const API_BASE = MODE === 'live'
+      ? 'https://app.paydunya.com/api/v1'
+      : 'https://app.paydunya.com/sandbox-api/v1'
+    const CHECKOUT_BASE = MODE === 'live'
+      ? 'https://app.paydunya.com/checkout/invoice'
+      : 'https://app.paydunya.com/sandbox-checkout/invoice'
 
-    const params = new URLSearchParams()
-    params.set('item_name',   'Rechargement SamaCampus')
-    params.set('item_price',  String(amount))
-    params.set('ref_command', refCommand)
-    params.set('currency',    'xof')
-    params.set('notify_url',  notifyUrl)
-    params.set('success_url', `${APP_URL}?status=success`)
-    params.set('cancel_url',  `${APP_URL}?status=cancel`)
-    params.set('custom_field', customField)
+    // ── 4. Appel PayDunya ────────────────────────────────────────
+    const refCommand = `SAMA-${type.toUpperCase()}-${Date.now()}`
+    const notifyUrl  = `${Deno.env.get('SUPABASE_URL')}/functions/v1/payment-webhook`
 
-    console.log('Calling PayTech:', { amount, refCommand, notifyUrl, success_url: `${APP_URL}?status=success` })
+    const payload = {
+      invoice: {
+        total_amount: amount,
+        description: `Rechargement SamaCampus — ${refCommand}`,
+      },
+      store: {
+        name: 'SamaCampus',
+      },
+      actions: {
+        cancel_url:   `${APP_URL}?status=cancel`,
+        return_url:   `${APP_URL}?status=success`,
+        callback_url: notifyUrl,
+      },
+      custom_data: {
+        user_id: user.id,
+        amount,
+        type,
+        ref_command: refCommand,
+      },
+    }
 
-    const ptRes = await fetch('https://paytech.sn/api/payment/request-payment', {
+    console.log('Calling PayDunya:', { mode: MODE, amount, refCommand, notifyUrl })
+
+    const pdRes = await fetch(`${API_BASE}/checkout-invoice/create`, {
       method: 'POST',
       headers: {
-        'API_KEY':      API_KEY,
-        'API_SECRET':   API_SECRET,
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type':         'application/json',
+        'PAYDUNYA-MASTER-KEY':  MASTER_KEY,
+        'PAYDUNYA-PRIVATE-KEY': PRIVATE_KEY,
+        'PAYDUNYA-TOKEN':       TOKEN_KEY,
       },
-      body: params.toString(),
+      body: JSON.stringify(payload),
     })
 
-    const rawText = await ptRes.text()
-    console.log('PayTech HTTP status:', ptRes.status)
-    console.log('PayTech response:', rawText)
+    const rawText = await pdRes.text()
+    console.log('PayDunya HTTP status:', pdRes.status)
+    console.log('PayDunya response:', rawText)
 
-    let ptData: Record<string, unknown> = {}
-    try { ptData = JSON.parse(rawText) } catch {
-      return json({ error: `Réponse PayTech invalide: ${rawText.slice(0, 200)}` }, 502)
+    let pdData: Record<string, unknown> = {}
+    try { pdData = JSON.parse(rawText) } catch {
+      return json({ error: `Réponse PayDunya invalide: ${rawText.slice(0, 200)}` }, 502)
     }
 
-    // PayTech retourne success:1 (int) ou success:"1" (string) selon la version
-    const isSuccess = ptData.success === 1 || ptData.success === '1'
-    if (!isSuccess) {
-      const errMsg = Array.isArray(ptData.errors)
-        ? (ptData.errors as string[]).join(', ')
-        : String(ptData.errors ?? ptData.error ?? 'Erreur inconnue PayTech')
-      console.error('PayTech refused:', errMsg)
-      return json({ error: `PayTech: ${errMsg}` }, 502)
+    if (pdData.response_code !== '00') {
+      const errMsg = String(pdData.response_text ?? pdData.description ?? 'Erreur inconnue PayDunya')
+      console.error('PayDunya refused:', errMsg)
+      return json({ error: `PayDunya: ${errMsg}` }, 502)
     }
 
-    const redirectUrl = ptData.redirectUrl ?? ptData.redirect_url
-    if (!redirectUrl) {
-      console.error('PayTech success but no redirectUrl:', ptData)
-      return json({ error: 'URL de redirection manquante dans la réponse PayTech' }, 502)
+    const token = pdData.token as string | undefined
+    if (!token) {
+      console.error('PayDunya success but no token:', pdData)
+      return json({ error: 'Token de facture manquant dans la réponse PayDunya' }, 502)
     }
 
-    return json({ redirectUrl, token: ptData.token })
+    // PayDunya renvoie parfois l'URL de paiement directement dans response_text
+    const responseText = typeof pdData.response_text === 'string' ? pdData.response_text : ''
+    const redirectUrl = responseText.startsWith('http') ? responseText : `${CHECKOUT_BASE}/${token}`
+
+    return json({ redirectUrl, token })
 
   } catch (err) {
     console.error('Unhandled error in payment-init:', err)
