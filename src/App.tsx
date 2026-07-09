@@ -3,7 +3,6 @@ import { scPalette, type Variant } from './theme/palette'
 import { HomeScreen } from './screens/HomeScreen'
 import { HistoryScreen } from './screens/HistoryScreen'
 import { PayScreen } from './screens/PayScreen'
-import { AccessScreen } from './screens/AccessScreen'
 import { PresencesScreen } from './screens/PresencesScreen'
 import { BookLoansScreen } from './screens/BookLoansScreen'
 import { ProfileScreen } from './screens/ProfileScreen'
@@ -13,7 +12,7 @@ import { StudentProvider, useStudent } from './context/StudentContext'
 import { studentInitials } from './lib/db'
 import { supabase } from './lib/supabase'
 
-type Screen = 'home' | 'history' | 'pay' | 'pay-pay' | 'pay-recharge' | 'access' | 'presences' | 'loans' | 'profile'
+type Screen = 'home' | 'history' | 'pay' | 'pay-pay' | 'pay-recharge' | 'presences' | 'loans' | 'profile'
 
 const VARIANT: Variant = 'light'
 
@@ -21,7 +20,6 @@ const NAV = [
   { key: 'home' as Screen,      ic: 'home',     label: 'Carte' },
   { key: 'history' as Screen,   ic: 'history',  label: 'Activité' },
   { key: 'pay' as Screen,       ic: 'pay',      label: 'Payer' },
-  { key: 'access' as Screen,    ic: 'qr',       label: 'Accès' },
   { key: 'presences' as Screen, ic: 'calendar', label: 'Présences' },
   { key: 'loans' as Screen,     ic: 'book',     label: 'Emprunts' },
   { key: 'profile' as Screen,   ic: 'user',     label: 'Profil' },
@@ -112,7 +110,6 @@ function AuthenticatedApp({ p, screen, setScreen }: {
     case 'pay':
     case 'pay-pay':      content = <PayScreen p={p} mode="pay" />; break
     case 'pay-recharge': content = <PayScreen p={p} mode="recharge" />; break
-    case 'access':       content = <AccessScreen p={p} />; break
     case 'presences':    content = <PresencesScreen p={p} />; break
     case 'loans':        content = <BookLoansScreen p={p} />; break
     case 'profile':      content = <ProfileScreen p={p} onLogout={logout} />; break

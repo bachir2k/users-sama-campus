@@ -81,8 +81,8 @@ export function HomeScreen({ p, go }: Props) {
   const quick = [
     { ic: 'plus',     label: 'Recharger', to: 'pay-recharge' },
     { ic: 'pay',      label: 'Payer',     to: 'pay-pay' },
-    { ic: 'qr',       label: 'Accès',     to: 'access' },
     { ic: 'calendar', label: 'Présences', to: 'presences' },
+    { ic: 'book',     label: 'Emprunts',  to: 'loans' },
   ]
 
   return (

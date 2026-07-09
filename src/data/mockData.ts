@@ -35,13 +35,6 @@ export const SCHEDULE = [
   { time: '16:00', course: 'Anglais technique',       room: 'Salle 110', status: 'upcoming' as const },
 ]
 
-export const ACCESS_LOG = [
-  { place: 'Bâtiment B — Entrée',  when: "Aujourd'hui · 09:02" },
-  { place: 'Bibliothèque centrale', when: 'Hier · 15:30' },
-  { place: 'Labo 3 — Réseaux',     when: 'Hier · 14:05' },
-  { place: 'Parking étudiant',      when: 'Lun. 26 · 08:40' },
-]
-
 export const CAT_COLOR: Record<string, string> = {
   'Cafétéria':    '#8B6B4A',
   'Transport':    '#7C8458',
