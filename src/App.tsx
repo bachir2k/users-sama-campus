@@ -29,17 +29,15 @@ const DISP = '"Quicksand", system-ui, sans-serif'
 
 export default function App() {
   const p = scPalette(VARIANT)
-  const urlParams = new URLSearchParams(window.location.search)
-  const urlStatus = urlParams.get('status')
-  const urlToken  = urlParams.get('token')
+  const urlStatus = new URLSearchParams(window.location.search).get('status')
   const [screen, setScreen] = useState<Screen>(
-    urlStatus === 'success' || urlStatus === 'cancel' || urlToken ? 'pay-recharge' : 'home'
+    urlStatus === 'success' || urlStatus === 'cancel' ? 'pay-recharge' : 'home'
   )
   const [authed, setAuthed] = useState<boolean | null>(null)
 
   useEffect(() => {
-    if (urlStatus || urlToken) window.history.replaceState({}, '', window.location.pathname)
-  }, [urlStatus, urlToken])
+    if (urlStatus) window.history.replaceState({}, '', window.location.pathname)
+  }, [urlStatus])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {

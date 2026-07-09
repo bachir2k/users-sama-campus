@@ -92,9 +92,7 @@ serve(async (req) => {
       },
       actions: {
         cancel_url:   `${APP_URL}?status=cancel`,
-        // PayDunya ajoute lui-même "?token=..." au retour — pas de query string ici
-        // pour éviter un "?...?token=..." malformé.
-        return_url:   APP_URL,
+        return_url:   `${APP_URL}?status=success`,
         callback_url: notifyUrl,
       },
       custom_data: {

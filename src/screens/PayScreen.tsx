@@ -5,6 +5,7 @@ import { Money } from '../components/ui/Money'
 import { supabase } from '../lib/supabase'
 
 const DISP = '"Quicksand", system-ui, sans-serif'
+const PENDING_TOKEN_KEY = 'sc_pending_payment_token'
 
 const PRESETS = [2000, 5000, 10000, 20000]
 const METHODS = [
@@ -37,18 +38,23 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
-  // Détecter le retour depuis PayDunya : soit ?status=cancel, soit ?token=... (succès,
-  // PayDunya ajoute ce paramètre lui-même) qu'on confirme activement plutôt que
-  // d'attendre le webhook (pas fiable en sandbox).
-  const returnParams = new URLSearchParams(window.location.search)
-  const urlToken = returnParams.get('token')
+  // Détecter le retour depuis PayDunya (?status=success ou ?status=cancel). PayDunya
+  // n'ajoute pas le token de facture à l'URL de retour sur ce flow, donc on l'a
+  // nous-mêmes stocké dans sessionStorage juste avant la redirection (handleRecharge)
+  // pour pouvoir confirmer activement le paiement plutôt que d'attendre le webhook
+  // (pas fiable en sandbox).
+  const urlStatus = new URLSearchParams(window.location.search).get('status')
 
   useEffect(() => {
-    if (!urlToken) return
+    if (urlStatus !== 'success') return
+    const pendingToken = sessionStorage.getItem(PENDING_TOKEN_KEY)
+    if (!pendingToken) return
+    sessionStorage.removeItem(PENDING_TOKEN_KEY)
+
     setTab('recharge')
     setLoading(true)
     setErrorMsg('')
-    supabase.functions.invoke('payment-confirm', { body: { token: urlToken } })
+    supabase.functions.invoke('payment-confirm', { body: { token: pendingToken } })
       .then(async ({ data, error }) => {
         if (error) throw new Error(await extractErrorMessage(error))
         if (!data?.credited) throw new Error(data?.error || 'Paiement non confirmé')
@@ -57,7 +63,7 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
       })
       .catch((e: Error) => setErrorMsg(e.message))
       .finally(() => setLoading(false))
-  }, [urlToken])
+  }, [urlStatus])
 
   const methodColor = (key: typeof METHODS[0]['colorKey']) =>
     ({ brown: p.brown, blue: p.blue, olive: p.olive }[key])
@@ -78,6 +84,7 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
       }
 
       if (data?.redirectUrl) {
+        if (data.token) sessionStorage.setItem(PENDING_TOKEN_KEY, data.token)
         window.location.href = data.redirectUrl
       } else {
         console.error('[payment-init] no redirectUrl in response:', data)
