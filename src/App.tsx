@@ -29,14 +29,19 @@ const DISP = '"Quicksand", system-ui, sans-serif'
 
 export default function App() {
   const p = scPalette(VARIANT)
-  const urlStatus = new URLSearchParams(window.location.search).get('status')
+  // PayDunya ajoute parfois un "/" parasite avant le paramètre suivant
+  // (ex: "?status=success/&token=..."), d'où le nettoyage.
+  const urlStatus = new URLSearchParams(window.location.search).get('status')?.replace(/\/$/, '')
   const [screen, setScreen] = useState<Screen>(
     urlStatus === 'success' || urlStatus === 'cancel' ? 'pay-recharge' : 'home'
   )
   const [authed, setAuthed] = useState<boolean | null>(null)
 
   useEffect(() => {
-    if (urlStatus) window.history.replaceState({}, '', window.location.pathname)
+    // Le cas "success" est nettoyé par PayScreen une fois le paiement traité
+    // (sinon l'URL est effacée avant même que PayScreen ait eu le temps de la lire,
+    // vu qu'il ne monte qu'après le chargement async de la session/du profil).
+    if (urlStatus === 'cancel') window.history.replaceState({}, '', window.location.pathname)
   }, [urlStatus])
 
   useEffect(() => {
@@ -78,7 +83,10 @@ function AuthenticatedApp({ p, screen, setScreen }: {
   const go = (s: string) => setScreen(s as Screen)
   const logout = () => supabase.auth.signOut()
 
-  if (loading) {
+  // Uniquement au tout premier chargement (pas de student encore) — un refetch()
+  // ultérieur (ex: après un rechargement) ne doit pas remonter tout l'écran et
+  // perdre l'état local des composants enfants (ex: l'écran "Rechargement effectué").
+  if (loading && !student) {
     return (
       <div style={{ minHeight: '100dvh', background: p.appBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ width: 32, height: 32, borderRadius: '50%', border: `3px solid ${p.line}`, borderTopColor: p.brown, animation: 'spin 0.7s linear infinite' }} />

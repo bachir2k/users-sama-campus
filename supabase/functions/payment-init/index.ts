@@ -96,7 +96,10 @@ serve(async (req) => {
         callback_url: notifyUrl,
       },
       custom_data: {
-        user_id: studentId,
+        // increment_card_balance() attend l'id auth (elle résout elle-même le
+        // students.id via l'email) ; transactions.student_id attend le students.id.
+        auth_user_id: user.id,
+        student_id:   studentId,
         amount,
         type,
         ref_command: refCommand,

@@ -3,8 +3,10 @@ import type { Palette } from '../theme/palette'
 import { Icon } from '../components/ui/Icon'
 import { Money } from '../components/ui/Money'
 import { supabase } from '../lib/supabase'
+import { useStudent } from '../context/StudentContext'
 
 const DISP = '"Quicksand", system-ui, sans-serif'
+const PENDING_TOKEN_KEY = 'sc_pending_payment_token'
 
 const PRESETS = [2000, 5000, 10000, 20000]
 const METHODS = [
@@ -13,12 +15,23 @@ const METHODS = [
   { n: 'Free Money',   colorKey: 'olive' as const },
 ]
 
+async function extractErrorMessage(error: unknown): Promise<string> {
+  let detail = error instanceof Error ? error.message : 'Erreur inconnue'
+  try {
+    const body = await (error as any)?.context?.json?.()
+    if (body?.error) detail = body.error
+    else if (body?.message) detail = body.message
+  } catch { /* ignore */ }
+  return detail
+}
+
 interface Props {
   p: Palette
   mode?: 'pay' | 'recharge'
 }
 
 export function PayScreen({ p, mode = 'pay' }: Props) {
+  const { refetch } = useStudent()
   const [tab, setTab]       = useState<'pay' | 'recharge'>(mode)
   const [amount, setAmount] = useState(mode === 'recharge' ? 10000 : 0)
   const [customMode, setCustomMode] = useState(false)
@@ -27,13 +40,33 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
-  // Détecter le retour depuis PayDunya (?status=success ou ?status=cancel)
-  const urlStatus = new URLSearchParams(window.location.search).get('status')
+  // Détecter le retour depuis PayDunya (?status=success ou ?status=cancel). On confirme
+  // activement le paiement avec le token stocké dans sessionStorage juste avant la
+  // redirection (handleRecharge) plutôt que d'attendre le webhook (pas fiable en
+  // sandbox). PayDunya ajoute parfois un "/" parasite avant le paramètre suivant
+  // (ex: "?status=success/&token=..."), d'où le nettoyage.
+  const urlStatus = new URLSearchParams(window.location.search).get('status')?.replace(/\/$/, '')
+
   useEffect(() => {
-    if (urlStatus === 'success') {
-      setTab('recharge')
-      setPaid(true)
-    }
+    if (urlStatus !== 'success') return
+    window.history.replaceState({}, '', window.location.pathname)
+    const pendingToken = sessionStorage.getItem(PENDING_TOKEN_KEY)
+    if (!pendingToken) return
+    sessionStorage.removeItem(PENDING_TOKEN_KEY)
+
+    setTab('recharge')
+    setLoading(true)
+    setErrorMsg('')
+    supabase.functions.invoke('payment-confirm', { body: { token: pendingToken } })
+      .then(async ({ data, error }) => {
+        if (error) throw new Error(await extractErrorMessage(error))
+        if (!data?.credited) throw new Error(data?.error || 'Paiement non confirmé')
+        setAmount(data.amount)
+        setPaid(true)
+        refetch()
+      })
+      .catch((e: Error) => setErrorMsg(e.message))
+      .finally(() => setLoading(false))
   }, [urlStatus])
 
   const methodColor = (key: typeof METHODS[0]['colorKey']) =>
@@ -49,18 +82,13 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
       })
 
       if (error) {
-        // Extraire le vrai message retourné par l'edge function
-        let detail = error.message
-        try {
-          const body = await (error as any).context?.json?.()
-          if (body?.error) detail = body.error
-          else if (body?.message) detail = body.message
-        } catch { /* ignore */ }
+        const detail = await extractErrorMessage(error)
         console.error('[payment-init] error:', detail)
         throw new Error(detail)
       }
 
       if (data?.redirectUrl) {
+        if (data.token) sessionStorage.setItem(PENDING_TOKEN_KEY, data.token)
         window.location.href = data.redirectUrl
       } else {
         console.error('[payment-init] no redirectUrl in response:', data)
@@ -180,6 +208,7 @@ export function PayScreen({ p, mode = 'pay' }: Props) {
                   placeholder="Autre montant (F)"
                   value={amount || ''}
                   onChange={e => setAmount(Math.max(0, Math.round(Number(e.target.value))))}
+                  onWheel={e => (e.target as HTMLInputElement).blur()}
                   style={{
                     gridColumn: '1 / -1',
                     border: `1px solid ${p.brown}`,
