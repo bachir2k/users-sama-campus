@@ -100,7 +100,7 @@ serve(async (req) => {
       .from('transactions')
       .select('id')
       .eq('student_id', studentId)
-      .ilike('description', `%${token}%`)
+      .eq('reference', token)
       .maybeSingle()
 
     if (existing) {
@@ -120,9 +120,11 @@ serve(async (req) => {
     await supabase.from('transactions').insert({
       student_id:  studentId,
       service:     'Rechargement',
-      description: `Rechargement PayDunya — ${token}`,
+      type:        'recharge',
+      description: 'Rechargement carte',
+      reference:   token,
       amount,
-      status:      'completed',
+      status:      'ok',
     }).then(({ error }) => {
       if (error) console.warn('transaction insert skipped:', error.message)
     })
