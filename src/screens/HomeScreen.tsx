@@ -82,6 +82,7 @@ export function HomeScreen({ p, go }: Props) {
     { ic: 'plus',     label: 'Recharger', to: 'pay' },
     { ic: 'calendar', label: 'Présences', to: 'presences' },
     { ic: 'book',     label: 'Emprunts',  to: 'loans' },
+    { ic: 'history',  label: 'Activité',   to: 'history' },
   ]
 
   return (
